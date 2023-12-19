@@ -75,20 +75,17 @@ resource "aws_ecs_cluster" "python_cluster" {
 resource "aws_launch_configuration" "ecs_launch_configuration" {
   name                 = "ecs-launch-config"
   image_id             = "ami-0aee0743bf2e81172"  # Replace with your AMI ID
-  instance_type        = "t2.small"  # Choose instance type as per your requirements
+  instance_type        = "t2.small" 
 
-  # No need to specify associate_public_ip_address here since we're not using subnets
-  # Other configurations for the launch configuration as needed
-  # For instance, key_name, user_data, etc.
 }
 
 resource "aws_autoscaling_group" "ecs_autoscaling_group" {
-  desired_capacity     = 1  # Number of instances to launch initially
-  max_size             = 3  # Maximum number of instances in the group
-  min_size             = 1  # Minimum number of instances in the group
+  desired_capacity     = 1 
+  max_size             = 3 
+  min_size             = 1 
 
   launch_configuration = aws_launch_configuration.ecs_launch_configuration.id
-  # Since we're using the default VPC, no need to specify vpc_zone_identifier
+ 
 }
 
 resource "aws_ecs_task_definition" "python_task_definition" {
