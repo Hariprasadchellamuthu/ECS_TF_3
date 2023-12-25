@@ -40,7 +40,7 @@ resource "aws_iam_instance_profile" "ecs_instance_profile" {
 # Create an ECS launch configuration
 resource "aws_launch_configuration" "ecs_launch_config" {
   name = "ecs-launch-config"
-  image_id = "ami-xxxxxxxxxxxxxxxx"  # Use a Linux AMI ID
+  image_id = "ami-0aee0743bf2e81172"  # Use a Linux AMI ID
   instance_type = "t2.micro"
   iam_instance_profile = aws_iam_instance_profile.ecs_instance_profile.name
   user_data = <<-EOF
