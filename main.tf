@@ -42,6 +42,9 @@ resource "aws_launch_configuration" "ecs_launch_config" {
   name = "ecs-launch-config"
   image_id = "ami-0aee0743bf2e81172"  # Use a Linux AMI ID
   instance_type = "t2.micro"
+  associate_public_ip_address = true
+  key_name = "ECS_pk"
+  security_groups = [aws_security_group.ecs_security_group.id]
   iam_instance_profile = aws_iam_instance_profile.ecs_instance_profile.name
   user_data = <<-EOF
               #!/bin/bash
