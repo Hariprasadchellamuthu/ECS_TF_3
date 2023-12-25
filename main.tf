@@ -90,7 +90,6 @@ resource "aws_security_group" "ecs_security_group" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
-}
 
 # Create an ECS task definition for Jenkins
 resource "aws_ecs_task_definition" "jenkins_task" {
