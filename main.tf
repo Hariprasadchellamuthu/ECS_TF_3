@@ -95,7 +95,7 @@ resource "aws_security_group" "ecs_security_group" {
 resource "aws_ecs_task_definition" "jenkins_task" {
   family                   = "jenkins-task"
   network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE","EC2"]
+  requires_compatibilities = ["EC2"]
 
   container_definitions = jsonencode([
     {
