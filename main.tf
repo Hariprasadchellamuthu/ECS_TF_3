@@ -1,60 +1,84 @@
 provider "aws" {
-  region = "ap-south-1"  # Replace with your AWS region
+  region = "ap-south-1"
 }
 
-variable "availability_zones" {
-  type    = list(string)
-  default = ["ap-south-1a", "ap-south-1b"] # Replace with your availability zones
+resource "aws_security_group" "ecs_security_group" {
+  name        = "ecs-security-group"
+  description = "Security group for ECS tasks"
+  vpc_id      = "vpc-0405817222cfcf446" # Replace with your VPC ID
+
+  ingress {
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 }
 
-
-# Create a standard label resource. See [null-label](https://github.com/cloudposse/terraform-null-label/#terraform-null-label--)
-module "label" {
-  source  = "cloudposse/label/null"
-  # Cloud Posse recommends pinning every module to a specific version, though usually you want to use the current one
-  # version = "x.x.x"
-
-  namespace = "eg"
-  name      = "example"
-}
-
-module "vpc" {
-  source  = "cloudposse/vpc/aws"
-  version = "1.2.0"
-
-  context                 = module.label.context
-  ipv4_primary_cidr_block = "172.16.0.0/16"
-}
-
-module "subnets" {
-  source  = "cloudposse/dynamic-subnets/aws"
-  version = "2.0.4"
-
-  context              = module.label.context
-  availability_zones   = var.availability_zones
-  vpc_id               = module.vpc.vpc_id
-  igw_id               = [module.vpc.igw_id]
-  ipv4_cidr_block      = [module.vpc.vpc_cidr_block]
-  nat_gateway_enabled  = True
-  nat_instance_enabled = True
-}
 
 module "ecs_cluster" {
-  source = "cloudposse/ecs-cluster/aws"
+  source  = "terraform-aws-modules/ecs/aws"
+  version = "3.0.0"
 
-  context = module.label.context
+  name = "jenkins-ecs-cluster"
 
-  container_insights_enabled      = true
-  capacity_providers_fargate      = true
-  capacity_providers_fargate_spot = true
-  capacity_providers_ec2 = {
-    default = {
-      instance_type               = "t2.medium"
-      security_group_ids          = [module.vpc.vpc_default_security_group_id]
-      subnet_ids                  = module.subnets.private_subnet_ids
-      associate_public_ip_address = True
-      min_size                    = 0
-      max_size                    = 2
+  vpc_id                  = "vpc-0405817222cfcf446"  # Replace with your VPC ID
+  subnet_ids              = ["subnet-09153db740467e15a", "subnet-01221c2705b0046bd", "subnet-01a2a1e8a4bea1176"]  # Replace with your subnet IDs
+  security_group_ids      = aws_security_group.ecs_security_group.id  # Replace with your security group ID
+  container_instance_type = "t2.micro"  # Replace with your desired instance type
+
+  enable_container_insights = true
+}
+
+module "ecs_service" {
+  source  = "terraform-aws-modules/ecs/aws//modules/service"
+  version = "3.0.0"
+
+  name        = "jenkins-ecs-service"
+  cluster     = module.ecs_cluster.cluster_name
+  launch_type = "EC2"
+
+  task_definition_family = "jenkins-task-family"
+  task_definition_name   = module.ecs_task_definition.task_definition_name
+
+  desired_count = 1
+}
+
+module "ecs_task_definition" {
+  source  = "terraform-aws-modules/ecs/aws//modules/task-definition"
+  version = "3.0.0"
+
+  name        = "jenkins-task-family"
+  family      = "jenkins-task-family"
+  network_mode = "bridge"
+
+  container_definitions = jsonencode([
+    {
+      name  = "jenkins-container"
+      image = "jenkins/jenkins:lts"
+      cpu   = 512
+      memory = 1024
+      essential = true
+      portMappings = [
+        {
+          containerPort = 8080,
+          hostPort      = 8080
+        },
+      ]
     }
-  }
+  ])
 }
