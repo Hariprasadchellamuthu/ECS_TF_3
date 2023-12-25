@@ -2,6 +2,12 @@ provider "aws" {
   region = "ap-south-1"  # Replace with your AWS region
 }
 
+variable "availability_zones" {
+  type    = list(string)
+  default = ["ap-south-1a", "ap-south-1b"] # Replace with your availability zones
+}
+
+
 # Create a standard label resource. See [null-label](https://github.com/cloudposse/terraform-null-label/#terraform-null-label--)
 module "label" {
   source  = "cloudposse/label/null"
@@ -43,7 +49,7 @@ module "ecs_cluster" {
   capacity_providers_fargate_spot = true
   capacity_providers_ec2 = {
     default = {
-      instance_type               = "t3.medium"
+      instance_type               = "t2.medium"
       security_group_ids          = [module.vpc.vpc_default_security_group_id]
       subnet_ids                  = module.subnets.private_subnet_ids
       associate_public_ip_address = True
