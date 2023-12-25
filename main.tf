@@ -106,9 +106,10 @@ resource "aws_ecs_task_definition" "jenkins_task" {
           containerPort = 8080,
           hostPort      = 8080,
         },
-      ]
+      ],
+      memory = 512
     },
-    # Add more container definitions as needed
+    
   ])
 }
 
