@@ -95,7 +95,7 @@ resource "aws_security_group" "ecs_security_group" {
 resource "aws_ecs_task_definition" "jenkins_task" {
   family                   = "jenkins-task"
   network_mode             = "awsvpc"
-  requires_compatibilities = ["EC2"]
+  requires_compatibilities = ["FARGATE","EC2"]
 
   container_definitions = jsonencode([
     {
@@ -107,7 +107,8 @@ resource "aws_ecs_task_definition" "jenkins_task" {
           hostPort      = 8080,
         },
       ],
-      memory = 512
+      cpu = 512
+      memory = 1024
     },
     
   ])
