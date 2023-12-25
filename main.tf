@@ -2,11 +2,73 @@ provider "aws" {
   region = "ap-south-1"
 }
 
-resource "aws_security_group" "ecs_security_group" {
-  name        = "ecs-security-group"
-  description = "Security group for ECS tasks"
-  vpc_id      = "vpc-0405817222cfcf446" # Replace with your VPC ID
+# Create a VPC
+resource "aws_vpc" "ecs_vpc" {
+  cidr_block = "10.0.0.0/16"
+  enable_dns_support = true
+  enable_dns_hostnames = true
+}
 
+# Create an ECS cluster
+resource "aws_ecs_cluster" "ecs_cluster" {
+  name = "ECS_JEN_CLUS"
+}
+
+# Create an IAM role for ECS instance profile
+resource "aws_iam_role" "ecs_instance_role" {
+  name = "ecs_instance_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Action = "sts:AssumeRole",
+        Effect = "Allow",
+        Principal = {
+          Service = "ec2.amazonaws.com",
+        },
+      },
+    ],
+  })
+}
+
+resource "aws_iam_instance_profile" "ecs_instance_profile" {
+  name = "ecs_instance_profile"
+  role = aws_iam_role.ecs_instance_role.name
+}
+
+# Create an ECS launch configuration
+resource "aws_launch_configuration" "ecs_launch_config" {
+  name = "ecs-launch-config"
+  image_id = "ami-xxxxxxxxxxxxxxxx"  # Use a Linux AMI ID
+  instance_type = "t2.micro"
+  iam_instance_profile = aws_iam_instance_profile.ecs_instance_profile.name
+  user_data = <<-EOF
+              #!/bin/bash
+              echo ECS_CLUSTER=${aws_ecs_cluster.ecs_cluster.name} >> /etc/ecs/ecs.config
+              EOF
+}
+
+# Create an ECS autoscaling group
+resource "aws_autoscaling_group" "ecs_autoscaling_group" {
+  desired_capacity     = 1
+  max_size             = 1
+  min_size             = 1
+  vpc_zone_identifier = [aws_subnet.ecs_subnet.id]
+  launch_configuration = aws_launch_configuration.ecs_launch_config.id
+}
+
+# Create a subnet for ECS instances
+resource "aws_subnet" "ecs_subnet" {
+  vpc_id                  = aws_vpc.ecs_vpc.id
+  cidr_block              = "10.0.1.0/24"
+  availability_zone       = "ap-south-1a"
+}
+
+# Create a security group for ECS instances
+resource "aws_security_group" "ecs_security_group" {
+  vpc_id = aws_vpc.ecs_vpc.id
+  
   ingress {
     from_port   = 8080
     to_port     = 8080
@@ -28,57 +90,39 @@ resource "aws_security_group" "ecs_security_group" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
-
-
-module "ecs_cluster" {
-  source  = "terraform-aws-modules/ecs/aws"
-  version = "3.0.0"
-
-  name = "jenkins-ecs-cluster"
-
-  vpc_id                  = "vpc-0405817222cfcf446"  # Replace with your VPC ID
-  subnet_ids              = ["subnet-09153db740467e15a", "subnet-01221c2705b0046bd", "subnet-01a2a1e8a4bea1176"]  # Replace with your subnet IDs
-  security_group_ids      = aws_security_group.ecs_security_group.id  # Replace with your security group ID
-  container_instance_type = "t2.micro"  # Replace with your desired instance type
-
-  enable_container_insights = true
 }
 
-module "ecs_service" {
-  source  = "terraform-aws-modules/ecs/aws//modules/service"
-  version = "3.0.0"
-
-  name        = "jenkins-ecs-service"
-  cluster     = module.ecs_cluster.cluster_name
-  launch_type = "EC2"
-
-  task_definition_family = "jenkins-task-family"
-  task_definition_name   = module.ecs_task_definition.task_definition_name
-
-  desired_count = 1
-}
-
-module "ecs_task_definition" {
-  source  = "terraform-aws-modules/ecs/aws//modules/task-definition"
-  version = "3.0.0"
-
-  name        = "jenkins-task-family"
-  family      = "jenkins-task-family"
-  network_mode = "bridge"
+# Create an ECS task definition for Jenkins
+resource "aws_ecs_task_definition" "jenkins_task" {
+  family                   = "jenkins-task"
+  network_mode             = "bridge"
+  requires_compatibilities = ["EC2"]
 
   container_definitions = jsonencode([
     {
       name  = "jenkins-container"
-      image = "jenkins/jenkins:lts"
-      cpu   = 512
-      memory = 1024
-      essential = true
+      image = "jenkins/jenkins:latest"  # Replace with your Jenkins image
       portMappings = [
         {
           containerPort = 8080,
-          hostPort      = 8080
+          hostPort      = 8080,
         },
       ]
-    }
+    },
+    # Add more container definitions as needed
   ])
+}
+
+# Create an ECS service for Jenkins
+resource "aws_ecs_service" "jenkins_service" {
+  name            = "jenkins-service"
+  cluster         = aws_ecs_cluster.ecs_cluster.id
+  task_definition = aws_ecs_task_definition.jenkins_task.arn
+  launch_type     = "EC2"
+  desired_count   = 1
+
+  network_configuration {
+    subnets = [aws_subnet.ecs_subnet.id]
+    security_groups = [aws_security_group.ecs_security_group.id]
+  }
 }
