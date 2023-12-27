@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-east-1"
+  region = "ap-south-1"
 }
 
 # Create VPC and Subnets
@@ -16,13 +16,13 @@ resource "aws_vpc" "my_vpc" {
 resource "aws_subnet" "subnet_a" {
   vpc_id     = aws_vpc.my_vpc.id
   cidr_block = "10.0.1.0/24"
-  availability_zone = "us-east-1-a"
+  availability_zone = "ap-south-1-a"
 }
 
 resource "aws_subnet" "subnet_b" {
   vpc_id     = aws_vpc.my_vpc.id
   cidr_block = "10.0.2.0/24"
-  availability_zone = "us-east-1-b"
+  availability_zone = "ap-south-1-b"
 }
 
 # ECS Cluster
